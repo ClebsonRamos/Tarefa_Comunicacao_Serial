@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
@@ -14,6 +15,7 @@
 #define PINO_LED_AZUL 12
 #define PINO_BOTAO_A 5
 #define PINO_BOTAO_B 6
+#define TEMPO_LIMITE_DEBOUNCING 200000
 
 //-----VARIÁVEIS GLOBAIS-----
 // Definição de pixel GRB
@@ -44,6 +46,7 @@ const uint8_t coordenadas_numero[10][13] = { // Vetor com a identificação dos 
 };
 
 static volatile bool estado_led_azul = false, estado_led_verde = false;
+static volatile uint32_t tempo_atual, tempo_passado = 0;
 
 //-----PROTÓTIPOS-----
 void inicializacao_maquina_pio(uint pino);
@@ -122,14 +125,16 @@ int main(void){
 	while(true){
         printf("Caractere: ");
         caractere_digitado = getchar();
+        sleep_ms(100);
 	}
 }
 
 //-----PROGRAMAS AUXILIARES-----
 void gpio_irq_handler(uint pino, uint32_t evento){
     if(gpio_get(PINO_BOTAO_A)){
-        sleep_ms(50);
-        if(gpio_get(PINO_BOTAO_A)){
+        tempo_atual = to_us_since_boot(get_absolute_time());
+        if(tempo_atual - tempo_passado > TEMPO_LIMITE_DEBOUNCING){
+            tempo_passado = tempo_atual;
             estado_led_verde = !estado_led_verde;
             gpio_put(PINO_LED_VERDE, estado_led_verde);
             if(estado_led_verde)
@@ -138,8 +143,8 @@ void gpio_irq_handler(uint pino, uint32_t evento){
                 printf("LED verde desativado.\n");
         }
     }else if(gpio_get(PINO_BOTAO_B)){
-        sleep_ms(50);
-        if(gpio_get(PINO_BOTAO_B)){
+        tempo_atual = to_us_since_boot(get_absolute_time());
+        if(tempo_atual - tempo_passado > TEMPO_LIMITE_DEBOUNCING){
             estado_led_azul = !estado_led_azul;
             gpio_put(PINO_LED_AZUL, estado_led_azul);
             if(estado_led_azul)
