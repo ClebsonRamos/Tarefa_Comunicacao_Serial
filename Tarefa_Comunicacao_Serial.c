@@ -121,10 +121,12 @@ int main(void){
     gpio_set_irq_enabled_with_callback(PINO_BOTAO_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled_with_callback(PINO_BOTAO_B, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
 
-	// Não faz mais nada. Loop infinito.
+	// Loop principal.
 	while(true){
         printf("Caractere: ");
-        caractere_digitado = getchar();
+        if(scanf("%c", &caractere_digitado) == 1){
+            printf("Caractere digitado: %c\n", caractere_digitado);
+        }
         sleep_ms(100);
 	}
 }
