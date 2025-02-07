@@ -19,7 +19,6 @@
 #define PINO_LED_AZUL 12
 #define PINO_BOTAO_A 5
 #define PINO_BOTAO_B 6
-//#define TEMPO_LIMITE_DEBOUNCING 200000
 #define I2C_PORTA i2c1
 #define I2C_SDA 14
 #define I2C_SCL 15
@@ -163,32 +162,36 @@ int main(void){
 //-----PROGRAMAS AUXILIARES-----
 void gpio_irq_handler(uint pino, uint32_t evento){
     if(gpio_get(PINO_BOTAO_A) && !botao_pressionado){ // Acionamento do LED verde
-        tempo_atual = to_us_since_boot(get_absolute_time());
+        tempo_atual = to_us_since_boot(get_absolute_time()); // Verifica o tempo atual em microssegundos.
         if(tempo_atual - tempo_passado > 200000){
-            tempo_passado = tempo_atual;
-            botao_pressionado = !botao_pressionado;
-            estado_led_verde = !estado_led_verde;
-            gpio_put(PINO_LED_VERDE, estado_led_verde);
-            if(estado_led_verde)
-                printf("LED verde ativado.\n");
-            else
-                printf("LED verde desativado.\n");
-            mensagem_botoes(PINO_BOTAO_A);
-            botao_pressionado = !botao_pressionado;
+            if(gpio_get(PINO_BOTAO_A) && !botao_pressionado){
+                tempo_passado = tempo_atual;
+                botao_pressionado = !botao_pressionado;
+                estado_led_verde = !estado_led_verde;
+                gpio_put(PINO_LED_VERDE, estado_led_verde); // Ativa/desativa o LED verde
+                if(estado_led_verde)
+                    printf("LED verde ativado.\n");
+                else
+                    printf("LED verde desativado.\n");
+                mensagem_botoes(PINO_BOTAO_A);
+                botao_pressionado = !botao_pressionado;
+            }
         }
     }else if(gpio_get(PINO_BOTAO_B) && !botao_pressionado){ // Acionamento do LED azul
         tempo_atual = to_us_since_boot(get_absolute_time());
         if(tempo_atual - tempo_passado > 200000){
-            tempo_passado = tempo_atual;
-            botao_pressionado = !botao_pressionado;
-            estado_led_azul = !estado_led_azul;
-            gpio_put(PINO_LED_AZUL, estado_led_azul);
-            if(estado_led_azul)
-                printf("LED azul ativado.\n");
-            else
-                printf("LED azul desativado.\n");
-            mensagem_botoes(PINO_BOTAO_B);
-            botao_pressionado = !botao_pressionado;
+            if(gpio_get(PINO_BOTAO_B) && !botao_pressionado){
+                tempo_passado = tempo_atual;
+                botao_pressionado = !botao_pressionado;
+                estado_led_azul = !estado_led_azul;
+                gpio_put(PINO_LED_AZUL, estado_led_azul); // Ativa/desativa o LED azul
+                if(estado_led_azul)
+                    printf("LED azul ativado.\n");
+                else
+                    printf("LED azul desativado.\n");
+                mensagem_botoes(PINO_BOTAO_B);
+                botao_pressionado = !botao_pressionado;
+            }
         }
     }
 }
