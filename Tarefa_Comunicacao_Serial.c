@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
@@ -18,7 +19,7 @@
 #define PINO_LED_AZUL 12
 #define PINO_BOTAO_A 5
 #define PINO_BOTAO_B 6
-#define TEMPO_LIMITE_DEBOUNCING 200000
+//#define TEMPO_LIMITE_DEBOUNCING 200000
 #define I2C_PORTA i2c1
 #define I2C_SDA 14
 #define I2C_SCL 15
@@ -53,7 +54,7 @@ const uint8_t coordenadas_numero[10][13] = { // Vetor com a identificação dos 
     {1, 2, 3, 8, 11, 12, 13, 16, 18, 21, 22, 23} // 9
 };
 
-static volatile bool estado_led_azul = false, estado_led_verde = false;
+static volatile bool estado_led_azul = false, estado_led_verde = false, botao_pressionado = false;
 static volatile uint32_t tempo_atual, tempo_passado = 0;
 
 ssd1306_t ssd; // Inicialização da estrutura do display
@@ -68,6 +69,7 @@ void gpio_irq_handler(uint pino, uint32_t evento);
 void inicializacao_dos_pinos(void);
 void interpretacao_do_caractere(char caractere);
 void manipulacao_matriz_led(int numero);
+void mensagem_botoes(uint botao);
 
 // Inicializa a máquina PIO para controle da matriz de LEDs.
 void inicializacao_maquina_pio(uint pino){
@@ -148,7 +150,7 @@ int main(void){
             printf("Caractere digitado: %c\n", caractere_digitado);
             interpretacao_do_caractere(caractere_digitado);
             if(caractere_digitado >= 48 && caractere_digitado <= 57){
-                manipulacao_matriz_led((int)caractere_digitado);
+                manipulacao_matriz_led(caractere_digitado);
             }else{
                 limpar_o_buffer();
                 escrever_no_buffer();
@@ -160,26 +162,33 @@ int main(void){
 
 //-----PROGRAMAS AUXILIARES-----
 void gpio_irq_handler(uint pino, uint32_t evento){
-    if(gpio_get(PINO_BOTAO_A)){
+    if(gpio_get(PINO_BOTAO_A) && !botao_pressionado){ // Acionamento do LED verde
         tempo_atual = to_us_since_boot(get_absolute_time());
-        if(tempo_atual - tempo_passado > TEMPO_LIMITE_DEBOUNCING){
+        if(tempo_atual - tempo_passado > 200000){
             tempo_passado = tempo_atual;
+            botao_pressionado = !botao_pressionado;
             estado_led_verde = !estado_led_verde;
             gpio_put(PINO_LED_VERDE, estado_led_verde);
             if(estado_led_verde)
                 printf("LED verde ativado.\n");
             else
                 printf("LED verde desativado.\n");
+            mensagem_botoes(PINO_BOTAO_A);
+            botao_pressionado = !botao_pressionado;
         }
-    }else if(gpio_get(PINO_BOTAO_B)){
+    }else if(gpio_get(PINO_BOTAO_B) && !botao_pressionado){ // Acionamento do LED azul
         tempo_atual = to_us_since_boot(get_absolute_time());
-        if(tempo_atual - tempo_passado > TEMPO_LIMITE_DEBOUNCING){
+        if(tempo_atual - tempo_passado > 200000){
+            tempo_passado = tempo_atual;
+            botao_pressionado = !botao_pressionado;
             estado_led_azul = !estado_led_azul;
             gpio_put(PINO_LED_AZUL, estado_led_azul);
             if(estado_led_azul)
                 printf("LED azul ativado.\n");
             else
                 printf("LED azul desativado.\n");
+            mensagem_botoes(PINO_BOTAO_B);
+            botao_pressionado = !botao_pressionado;
         }
     }
 }
@@ -207,14 +216,46 @@ void inicializacao_dos_pinos(void){
 }
 
 void interpretacao_do_caractere(char caractere){
+    char mensagem[2][20] = {"Caractere ", "Numero "};
+    uint registro_de_tipo;
+    if(caractere >= 'A' && caractere <= 'Z' || caractere >= 'a' && caractere <= 'z'){
+        registro_de_tipo = 0;
+        mensagem[0][10] = caractere;
+    }else if(caractere >= '0' && caractere <= '9'){
+        registro_de_tipo = 1;
+        mensagem[1][7] = caractere;
+    }
     ssd1306_fill(&ssd, false);
     ssd1306_rect(&ssd, 3, 3, 122, 58, true, false);
-    ssd1306_draw_char(&ssd, caractere, 8, 10);
+    ssd1306_draw_string(&ssd, mensagem[registro_de_tipo], 8, 10);
     ssd1306_send_data(&ssd);
 }
 
 void manipulacao_matriz_led(int numero){
-    for(uint i = 0; i < quantidade[numero]; i++)
-        atribuir_cor_ao_led(coordenadas_numero[numero][i], 0, 0, INTENS_LED);
+    // Os caracteres para algarismos na tabela ASCII possuem indexação que vão de 48 (número 0) à 57 (número 9).
+    // Subtrair 48 desse valor de indexação ajusta o valor real do algarismo.
+    uint num = numero - 48;
+    limpar_o_buffer();
+    for(uint i = 0; i < quantidade[num]; i++)
+        atribuir_cor_ao_led(coordenadas_numero[num][i], 0, 0, INTENS_LED);
     escrever_no_buffer();
+}
+
+void mensagem_botoes(uint botao){
+    char mensagem[15];
+    if(botao == PINO_BOTAO_A){
+        if(estado_led_verde)
+            strcat(mensagem, "LED Verde ON");
+        else
+            strcat(mensagem, "LED Verde OFF");
+    }else if(botao == PINO_BOTAO_B){
+        if(estado_led_azul)
+            strcat(mensagem, "LED Azul ON");
+        else
+            strcat(mensagem, "LED Azul OFF");
+    }
+    ssd1306_fill(&ssd, false);
+    ssd1306_rect(&ssd, 3, 3, 122, 58, true, false);
+    ssd1306_draw_string(&ssd, mensagem, 8, 10);
+    ssd1306_send_data(&ssd);
 }
