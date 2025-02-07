@@ -52,7 +52,8 @@ target_link_libraries(Tarefa_Comunicacao_Serial
         pico_stdlib
         hardware_pio
         hardware_clocks
-        hardware_timer)
+        hardware_timer
+        hardware_i2c)
 
 # Add the standard include files to the build
 target_include_directories(Tarefa_Comunicacao_Serial PRIVATE

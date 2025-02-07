@@ -4,6 +4,9 @@
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "hardware/timer.h"
+#include "hardware/i2c.h"
+#include "include/ssd1306.h"
+#include "include/font.h"
 
 // Biblioteca gerada pelo arquivo .pio durante compilação.
 #include "ws2818b.pio.h"
@@ -16,6 +19,11 @@
 #define PINO_BOTAO_A 5
 #define PINO_BOTAO_B 6
 #define TEMPO_LIMITE_DEBOUNCING 200000
+#define I2C_PORTA i2c1
+#define I2C_SDA 14
+#define I2C_SCL 15
+#define ENDERECO 0x3C
+#define INTENS_LED 200
 
 //-----VARIÁVEIS GLOBAIS-----
 // Definição de pixel GRB
@@ -48,6 +56,8 @@ const uint8_t coordenadas_numero[10][13] = { // Vetor com a identificação dos 
 static volatile bool estado_led_azul = false, estado_led_verde = false;
 static volatile uint32_t tempo_atual, tempo_passado = 0;
 
+ssd1306_t ssd; // Inicialização da estrutura do display
+
 //-----PROTÓTIPOS-----
 void inicializacao_maquina_pio(uint pino);
 void atribuir_cor_ao_led(const uint indice, const uint8_t r, const uint8_t g, const uint8_t b);
@@ -56,6 +66,8 @@ void escrever_no_buffer(void);
 
 void gpio_irq_handler(uint pino, uint32_t evento);
 void inicializacao_dos_pinos(void);
+void interpretacao_do_caractere(char caractere);
+void manipulacao_matriz_led(int numero);
 
 // Inicializa a máquina PIO para controle da matriz de LEDs.
 void inicializacao_maquina_pio(uint pino){
@@ -121,11 +133,26 @@ int main(void){
     gpio_set_irq_enabled_with_callback(PINO_BOTAO_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled_with_callback(PINO_BOTAO_B, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
 
+    ssd1306_init(&ssd, WIDTH, HEIGHT, false, ENDERECO, I2C_PORTA); // Inicializa o display
+    ssd1306_config(&ssd); // Configura o display
+    ssd1306_send_data(&ssd); // Envia os dados para o display
+
+    // Limpa o display. O display inicia com todos os pixels apagados.
+    ssd1306_fill(&ssd, false);
+    ssd1306_send_data(&ssd);
+
 	// Loop principal.
 	while(true){
         printf("Caractere: ");
         if(scanf("%c", &caractere_digitado) == 1){
             printf("Caractere digitado: %c\n", caractere_digitado);
+            interpretacao_do_caractere(caractere_digitado);
+            if(caractere_digitado >= 48 && caractere_digitado <= 57){
+                manipulacao_matriz_led((int)caractere_digitado);
+            }else{
+                limpar_o_buffer();
+                escrever_no_buffer();
+            }
         }
         sleep_ms(100);
 	}
@@ -171,4 +198,23 @@ void inicializacao_dos_pinos(void){
     gpio_set_dir(PINO_BOTAO_B, GPIO_IN);
     gpio_pull_up(PINO_BOTAO_A);
     gpio_pull_up(PINO_BOTAO_B);
+
+    i2c_init(I2C_PORTA, 400 * 1000);
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C); // Defina a função do pino GPIO para I2C
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C); // Defina a função do pino GPIO para I2C
+    gpio_pull_up(I2C_SDA); // Pull up na linha de dados
+    gpio_pull_up(I2C_SCL); // Pull up na linha de clock
+}
+
+void interpretacao_do_caractere(char caractere){
+    ssd1306_fill(&ssd, false);
+    ssd1306_rect(&ssd, 3, 3, 122, 58, true, false);
+    ssd1306_draw_char(&ssd, caractere, 8, 10);
+    ssd1306_send_data(&ssd);
+}
+
+void manipulacao_matriz_led(int numero){
+    for(uint i = 0; i < quantidade[numero]; i++)
+        atribuir_cor_ao_led(coordenadas_numero[numero][i], 0, 0, INTENS_LED);
+    escrever_no_buffer();
 }
