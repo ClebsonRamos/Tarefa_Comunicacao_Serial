@@ -53,8 +53,9 @@ const uint8_t coordenadas_numero[10][13] = { // Vetor com a identificação dos 
     {1, 2, 3, 8, 11, 12, 13, 16, 18, 21, 22, 23} // 9
 };
 
+// Variáveis booleanas para o controle dos estados dos LEDs verde e azul, e controle do estado dos botões.
 static volatile bool estado_led_azul = false, estado_led_verde = false, botao_pressionado = false;
-static volatile uint32_t tempo_atual, tempo_passado = 0;
+static volatile uint32_t tempo_atual, tempo_passado = 0; // Variáveis para registro de tempo para tratamento do debouncing.
 
 ssd1306_t ssd; // Inicialização da estrutura do display
 
@@ -121,14 +122,14 @@ void escrever_no_buffer(void){
 
 //-----PROGRAMA PRINCIPAL-----
 int main(void){
-    char caractere_digitado;
-	// Inicializa matriz de LEDs NeoPixel.
-	inicializacao_maquina_pio(PINO_MATRIZ_LED);
-	limpar_o_buffer();
-	escrever_no_buffer();
+    char caractere_digitado; // Variável para armazenamento do caractere digitado.
 
-    stdio_init_all();
-    inicializacao_dos_pinos();
+	inicializacao_maquina_pio(PINO_MATRIZ_LED); // Inicializa matriz de LEDs NeoPixel.
+	limpar_o_buffer(); // Usado aqui para inicializar o buffer da matriz de LEDs com valores nulos.
+	escrever_no_buffer(); // Atribui a inicialização do buffer da matriz de LEDs.
+
+    stdio_init_all(); // Inicialização das bibliotecas de entrada e saída padrão.
+    inicializacao_dos_pinos(); // Inicialização dos pinos utilizados nesse programa.
 
     // Inicialização das interrupções atribuídas aos botões.
     gpio_set_irq_enabled_with_callback(PINO_BOTAO_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
@@ -145,58 +146,56 @@ int main(void){
 	// Loop principal.
 	while(true){
         printf("Caractere: ");
-        if(scanf("%c", &caractere_digitado) == 1){
-            printf("Caractere digitado: %c\n", caractere_digitado);
+        if(scanf("%c", &caractere_digitado) == 1){ // Verifica continuamente se um caractere foi digitado.
+            printf("Caractere digitado: %c\n", caractere_digitado); // Exibe no serial monitor a informação do caractere digitado.
             interpretacao_do_caractere(caractere_digitado);
-            if(caractere_digitado >= 48 && caractere_digitado <= 57){
-                manipulacao_matriz_led(caractere_digitado);
-            }else{
+            if(caractere_digitado >= 48 && caractere_digitado <= 57){ // Desvio condicional caso o caractere digitado for um algarismo.
+                manipulacao_matriz_led(caractere_digitado); // Exibe na matriz de LEDs o algarismo digitado.
+            }else{ // Caso o caractere digitado não for um algarismo, apaga todos os LEDs da matriz.
                 limpar_o_buffer();
                 escrever_no_buffer();
             }
         }
-        sleep_ms(100);
+        sleep_ms(100); // Delay para poupar processamento do microcontrolador.
 	}
+
+    return 0;
 }
 
 //-----PROGRAMAS AUXILIARES-----
 void gpio_irq_handler(uint pino, uint32_t evento){
-    if(gpio_get(PINO_BOTAO_A) && !botao_pressionado){ // Acionamento do LED verde
-        tempo_atual = to_us_since_boot(get_absolute_time()); // Verifica o tempo atual em microssegundos.
+    if(pino == PINO_BOTAO_A && !botao_pressionado){ // Verifica se o botão A foi pressionado e se não tinha sido pressionado antes.
+        tempo_atual = to_us_since_boot(get_absolute_time()); // Verifica o tempo atual, em microssegundos, para tratar o debouncing.
         if(tempo_atual - tempo_passado > 200000){
-            if(gpio_get(PINO_BOTAO_A) && !botao_pressionado){
-                tempo_passado = tempo_atual;
-                botao_pressionado = !botao_pressionado;
-                estado_led_verde = !estado_led_verde;
-                gpio_put(PINO_LED_VERDE, estado_led_verde); // Ativa/desativa o LED verde
-                if(estado_led_verde)
-                    printf("LED verde ativado.\n");
-                else
-                    printf("LED verde desativado.\n");
-                mensagem_botoes(PINO_BOTAO_A);
-                botao_pressionado = !botao_pressionado;
-            }
+            tempo_passado = tempo_atual; // Atualiza a variável tempo_passado.
+            botao_pressionado = !botao_pressionado; // Altera o estado da variável botao_pressionado.
+            estado_led_verde = !estado_led_verde; // Altera o estado da variável estado_led_verde.
+            gpio_put(PINO_LED_VERDE, estado_led_verde); // Ativa/desativa o LED verde
+            if(estado_led_verde) // Informa o estado do LED verde no Serial Monitor.
+                printf("LED verde ativado.\n");
+            else
+                printf("LED verde desativado.\n");
+            mensagem_botoes(PINO_BOTAO_A);
+            botao_pressionado = !botao_pressionado;
         }
-    }else if(gpio_get(PINO_BOTAO_B) && !botao_pressionado){ // Acionamento do LED azul
-        tempo_atual = to_us_since_boot(get_absolute_time());
+    }else if(pino == PINO_BOTAO_B && !botao_pressionado){ // Verifica se o botão B foi pressionado e se não tinha sido pressionado antes.
+        tempo_atual = to_us_since_boot(get_absolute_time()); // Verifica o tempo atual, em microssegundos, para tratar o debouncing.
         if(tempo_atual - tempo_passado > 200000){
-            if(gpio_get(PINO_BOTAO_B) && !botao_pressionado){
-                tempo_passado = tempo_atual;
-                botao_pressionado = !botao_pressionado;
-                estado_led_azul = !estado_led_azul;
-                gpio_put(PINO_LED_AZUL, estado_led_azul); // Ativa/desativa o LED azul
-                if(estado_led_azul)
-                    printf("LED azul ativado.\n");
-                else
-                    printf("LED azul desativado.\n");
-                mensagem_botoes(PINO_BOTAO_B);
-                botao_pressionado = !botao_pressionado;
-            }
+            tempo_passado = tempo_atual; // Atualiza a variável tempo_passado.
+            botao_pressionado = !botao_pressionado; // Altera o estado da variável botao_pressionado.
+            estado_led_azul = !estado_led_azul; // Altera o estado da variável estado_led_azul.
+            gpio_put(PINO_LED_AZUL, estado_led_azul); // Ativa/desativa o LED azul
+            if(estado_led_azul) //Informa o estado do LED azul no Serial Monitor.
+                printf("LED azul ativado.\n");
+            else
+                printf("LED azul desativado.\n");
+            mensagem_botoes(PINO_BOTAO_B);
+            botao_pressionado = !botao_pressionado;
         }
     }
 }
 
-void inicializacao_dos_pinos(void){
+void inicializacao_dos_pinos(void){ // Função para ativação dos pinos utilizados neste código.
     gpio_init(PINO_LED_AZUL);
     gpio_init(PINO_LED_VERDE);
     gpio_set_dir(PINO_LED_AZUL, GPIO_OUT);
@@ -218,7 +217,7 @@ void inicializacao_dos_pinos(void){
     gpio_pull_up(I2C_SCL); // Pull up na linha de clock
 }
 
-void interpretacao_do_caractere(char caractere){
+void interpretacao_do_caractere(char caractere){ // Função para exibição do caractere digitado no display.
     char mensagem[2][20] = {"Caractere ", "Numero "};
     uint registro_de_tipo;
     if(caractere >= 'A' && caractere <= 'Z' || caractere >= 'a' && caractere <= 'z'){
@@ -234,7 +233,7 @@ void interpretacao_do_caractere(char caractere){
     ssd1306_send_data(&ssd);
 }
 
-void manipulacao_matriz_led(int numero){
+void manipulacao_matriz_led(int numero){ // Função para manipulação da matriz de LEDs quando um algarismo for digitado.
     // Os caracteres para algarismos na tabela ASCII possuem indexação que vão de 48 (número 0) à 57 (número 9).
     // Subtrair 48 desse valor de indexação ajusta o valor real do algarismo.
     uint num = numero - 48;
@@ -244,7 +243,7 @@ void manipulacao_matriz_led(int numero){
     escrever_no_buffer();
 }
 
-void mensagem_botoes(uint botao){
+void mensagem_botoes(uint botao){ // Função para exibição do estado dos LEDs no display.
     char mensagem[15];
     if(botao == PINO_BOTAO_A){
         if(estado_led_verde)
