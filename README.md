@@ -6,10 +6,10 @@ O botão A presente na BitDogLab foi programado para alterar o estado do LED RGB
 COMPONENTES
 
 Para executar este programa, é necessário:
-  1 placa Raspberry Pi Pico W, com um microcontrolador RP2040;
-  2 LEDs (azul e verde);
-  1 computador com o VS Code instalado;
-  1 cabo USB para comunicação com o terminal serial monitor.
+  * 1 placa Raspberry Pi Pico W, com um microcontrolador RP2040;
+  * 2 LEDs (azul e verde);
+  * 1 computador com o VS Code instalado;
+  * 1 cabo USB para comunicação com o terminal serial monitor.
 
 FUNCIONALIDADE DO PROGRAMA
 
